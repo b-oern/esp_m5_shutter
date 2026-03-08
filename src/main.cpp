@@ -13,12 +13,24 @@
 #include "HIDTypes.h"
 #include "HIDKeyboardTypes.h"
 
+#include <M5StickCPlus2.h>
+
 // Change the below values if desired
 #define BUTTON_PIN 37
 #define DEVICE_NAME "ESP32 Keyboard"
 
 // HID Consumer Control key code for Volume Up
-#define VOLUME_UP 0x81
+#define VOLUME_UP    0xE9
+#define SHUTTER      0x00E9 
+
+void blink(int times) {
+    for (int i = 0; i < times; i++) {
+        digitalWrite(LED_PIN, 1);  // on
+        delay(150);
+        digitalWrite(LED_PIN, 0); // off
+        delay(150);
+    }
+}
 
 // Forward declarations
 void bluetoothTask(void*);
@@ -29,20 +41,43 @@ bool isBleConnected = false;
 void setup() {
     Serial.begin(115200);
 
+    M5.begin();
+    M5.Lcd.setRotation(3);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setBrightness(10);
+
+
     // configure pin for button
     pinMode(BUTTON_PIN, INPUT_PULLUP);
 
     pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH); // HIGH = off (active low)
+    digitalWrite(LED_PIN, 0); // HIGH = off (active low)
 
     // start Bluetooth task
     xTaskCreate(bluetoothTask, "bluetooth", 20000, NULL, 5, NULL);
 }
 
 void loop() {  
+
+    M5.update();
+    
+    static unsigned long lastUpdate = 0;
+    if (millis() - lastUpdate >= 1000) {
+        lastUpdate = millis();
+        
+        float battery = M5.Power.getBatteryLevel();
+        M5.Lcd.fillScreen(BLACK);
+        M5.Lcd.setCursor(10, 10);
+        M5.Lcd.printf("Bat: %.0f%%", battery);
+        
+        M5.Lcd.setCursor(10, 40);
+        M5.Lcd.printf(isBleConnected ? "BLE: connected" : "BLE: waiting...");
+    }
+
     if (isBleConnected && digitalRead(BUTTON_PIN) == LOW) {
         Serial.println("Button pressed: sending VOLUME_UP");
-        sendConsumerKey(VOLUME_UP);
+        sendConsumerKey(SHUTTER);
+        blink(1);
         delay(200); // debounce
     }
 
@@ -80,6 +115,7 @@ class BleKeyboardCallbacks : public BLEServerCallbacks {
         BLE2902* cccDesc = (BLE2902*)input->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
         cccDesc->setNotifications(true);
         Serial.println("Client has connected");
+        blink(2);
     }
 
     void onDisconnect(BLEServer* server) {
@@ -125,7 +161,7 @@ void sendConsumerKey(uint16_t key) {
     ConsumerReport report = { .key = key };
     input->setValue((uint8_t*)&report, sizeof(report));
     input->notify();
-    delay(30);
+    delay(50);
 
     // Send key release (key = 0)
     ConsumerReport release = { .key = 0x00 };
