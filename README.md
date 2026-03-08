@@ -1,5 +1,7 @@
 # Remote Camera Shutter
 
+Remote camera shutter for smartphones. The M5Stick is paired with the smartphone, and then a photo can be taken using the stick’s button when the camera app is open.
+
 # DE
 
 Kamerafernauslöser für Smartphones. Der M5Stick wird vom Smartphone aus gekoppelt, dann kann mit der Taste des Sticks ein Foto aufgenommen werden, wenn die Kameraapp geöffnet ist.
